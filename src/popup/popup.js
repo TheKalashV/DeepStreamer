@@ -15,6 +15,8 @@
     ttsEnabled: $("ttsEnabled"),
     subtitlesEnabled: $("subtitlesEnabled"),
     autoStart: $("autoStart"),
+    simulatedViewers: $("simulatedViewers"),
+    aiViewers: $("aiViewers"),
     engineMode: $("engineMode"),
     activity: $("activity"),
     ttsVoice: $("ttsVoice"),
@@ -118,6 +120,8 @@
     els.ttsEnabled.checked = !!settings.ttsEnabled;
     els.subtitlesEnabled.checked = !!settings.subtitlesEnabled;
     els.autoStart.checked = !!settings.autoStart;
+    els.simulatedViewers.checked = !!settings.simulatedViewers;
+    els.aiViewers.checked = !!settings.aiViewers;
     els.engineMode.value = settings.engineMode;
     els.loopIntervalMs.value = settings.loopIntervalMs;
     els.loopVal.textContent = (settings.loopIntervalMs / 1000).toFixed(1);
@@ -168,6 +172,16 @@
 
   els.autoStart.addEventListener("change", async () => {
     await setSettings({ autoStart: els.autoStart.checked });
+  });
+
+  els.simulatedViewers.addEventListener("change", async () => {
+    await setSettings({ simulatedViewers: els.simulatedViewers.checked });
+    hint("Зрители: " + (els.simulatedViewers.checked ? "вкл" : "выкл"));
+  });
+
+  els.aiViewers.addEventListener("change", async () => {
+    await setSettings({ aiViewers: els.aiViewers.checked });
+    hint("Чат от DeepSeek: " + (els.aiViewers.checked ? "вкл" : "выкл"));
   });
 
   els.engineMode.addEventListener("change", async () => {

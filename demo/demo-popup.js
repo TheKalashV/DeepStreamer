@@ -33,6 +33,8 @@
           <label class="ds-toggle"><input type="checkbox" id="ttsEnabled" /><span>Озвучка (TTS)</span></label>
           <label class="ds-toggle"><input type="checkbox" id="subtitlesEnabled" /><span>Субтитры</span></label>
           <label class="ds-toggle"><input type="checkbox" id="autoStart" /><span>Автостарт</span></label>
+          <label class="ds-toggle"><input type="checkbox" id="simulatedViewers" /><span>Зрители (симуляция)</span></label>
+          <label class="ds-toggle"><input type="checkbox" id="aiViewers" /><span>Чат от DeepSeek</span></label>
         </div>
         <div class="ds-field">
           <label for="engineMode">Источник реплик</label>

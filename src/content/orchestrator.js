@@ -105,6 +105,11 @@
         else driftActivity();
         setEmotion(result.emotion || "neutral");
 
+        // Реплики зрителей, придуманные моделью (live-режим, aiViewers).
+        if (Array.isArray(result.chat) && result.chat.length) {
+          for (const m of result.chat) addChatMessage(m.author, m.text);
+        }
+
         const entry = addTranscript(result.text, state.streamer.emotion, state.streamer.activity);
         emit("speak", entry);
 
@@ -141,17 +146,27 @@
       loopHandle = setTimeout(tick, interval);
     }
 
-    // Демо-зрители для mock-режима: подкидывают сообщения в чат.
-    const MOCK_VIEWERS = ["neon_fox", "pixel_kate", "darkwave", "lol_master", "quietfan", "byteworm"];
+    // Симулированные зрители: подкидывают сообщения в чат. Работают в ЛЮБОМ
+    // режиме (mock и live), если включена настройка simulatedViewers.
+    const MOCK_VIEWERS = [
+      "neon_fox", "pixel_kate", "darkwave", "lol_master", "quietfan", "byteworm",
+      "sonya_vibe", "kirogames", "mr_toxic", "lena_cat", "prodev777", "night_owl",
+    ];
     const MOCK_MSGS = [
       "привет стример!", "гоу в игру", "ахаха топ", "красавчик", "а что дальше?",
       "первый!", "поставь музыку", "как настроение?", "легенда", "жду обзор",
+      "сколько тебе лет?", "го общаться", "лол", "F", "красава", "+", "жиза",
+      "а ты реально ИИ?", "покажи скилл", "го марафон", "лайк поставил", "воу",
     ];
     function startMockViewers() {
       stopMockViewers();
+      // Стартовое число зрителей, чтобы чат не был мёртвым.
+      if (!state.stats.viewers) state.stats.viewers = 12 + Math.floor(Math.random() * 40);
       mockViewerHandle = setInterval(() => {
-        if (!running || settings.engineMode !== "mock") return;
-        state.stats.viewers = 10 + Math.floor(Math.random() * 90);
+        if (!running || !settings.simulatedViewers) return;
+        // Плавно колеблем число зрителей.
+        const drift = Math.floor(Math.random() * 7) - 3;
+        state.stats.viewers = Math.max(1, state.stats.viewers + drift);
         if (Math.random() < 0.8) {
           const author = MOCK_VIEWERS[Math.floor(Math.random() * MOCK_VIEWERS.length)];
           const text = MOCK_MSGS[Math.floor(Math.random() * MOCK_MSGS.length)];
@@ -174,7 +189,7 @@
       settings = await getSettings();
       if (!running) return; // могли успеть остановить во время await
       emit("start", {});
-      if (settings.engineMode === "mock") startMockViewers();
+      if (settings.simulatedViewers) startMockViewers();
       tick();
     }
 
@@ -194,7 +209,7 @@
       const wasRunning = running;
       settings = next;
       if (wasRunning) {
-        if (settings.engineMode === "mock") startMockViewers();
+        if (settings.simulatedViewers) startMockViewers();
         else stopMockViewers();
       }
       emit("settings", next);

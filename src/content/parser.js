@@ -35,6 +35,17 @@
     return null;
   }
 
+  function normalizeChat(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((m) => ({
+        author: String(m?.author || "").trim().slice(0, 24),
+        text: String(m?.text || "").trim().slice(0, 200),
+      }))
+      .filter((m) => m.author && m.text)
+      .slice(0, 3);
+  }
+
   function parse(raw) {
     const obj = extractJson(raw);
     if (obj && typeof obj.say === "string") {
@@ -42,14 +53,17 @@
         text: obj.say.trim(),
         emotion: normalizeEmotion(obj.emotion) || ns.StreamState.guessEmotion(obj.say),
         activity: normalizeActivity(obj.activity),
+        chat: normalizeChat(obj.chat),
       };
     }
-    // Fallback: чистый текст.
-    const text = (raw || "").trim();
+    // Fallback: чистый текст. Отсекаем типичные «ассистентские» вступления.
+    let text = (raw || "").trim();
+    text = text.replace(/^как (?:ии|искусственный интеллект|языковая модель)[^.]*\.\s*/i, "");
     return {
       text,
       emotion: ns.StreamState.guessEmotion(text),
       activity: null,
+      chat: [],
     };
   }
 
