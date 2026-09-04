@@ -1,0 +1,157 @@
+:root {
+  --ds-bg: #16161c;
+  --ds-surface: #23232a;
+  --ds-surface2: #2c2c34;
+  --ds-text: #f2f2f7;
+  --ds-muted: #9a9aa2;
+  --ds-accent: #4d6bfe;
+  --ds-accent2: #8b5cf6;
+  --ds-border: #34343c;
+  --ds-green: #37d67a;
+  --ds-red: #ff4d4d;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+}
+
+.ds-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ds-border);
+}
+.ds-logo {
+  font-weight: 700;
+  font-size: 16px;
+  background: linear-gradient(90deg, var(--ds-accent), var(--ds-accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ds-version { font-size: 11px; color: var(--ds-muted); }
+
+.ds-main { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Главная кнопка */
+.ds-primary {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: linear-gradient(90deg, var(--ds-accent), var(--ds-accent2));
+  transition: opacity 0.15s ease, transform 0.05s ease;
+}
+.ds-primary:hover:not(:disabled) { opacity: 0.92; }
+.ds-primary:active:not(:disabled) { transform: translateY(1px); }
+.ds-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.ds-primary.is-live { background: linear-gradient(90deg, #ff6b6b, #ff4d4d); }
+
+/* Статус */
+.ds-statusrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ds-muted);
+}
+.ds-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ds-muted); }
+.ds-dot.is-off { background: #6c6c74; }
+.ds-dot.is-ready { background: var(--ds-green); }
+.ds-dot.is-live { background: var(--ds-red); animation: ds-pulse 1.3s ease-in-out infinite; }
+@keyframes ds-pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+/* Сетка тумблеров */
+.ds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ds-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 9px;
+  font-size: 12.5px;
+  cursor: pointer;
+  user-select: none;
+}
+.ds-toggle input {
+  appearance: none;
+  width: 34px; height: 19px;
+  background: var(--ds-border);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  flex: none;
+}
+.ds-toggle input::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 15px; height: 15px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+.ds-toggle input:checked { background: var(--ds-accent); }
+.ds-toggle input:checked::after { transform: translateX(15px); }
+
+/* Поля */
+.ds-field { display: flex; flex-direction: column; gap: 6px; }
+.ds-field label { font-size: 12px; color: var(--ds-muted); }
+.ds-field label b { color: var(--ds-text); }
+.ds-field select,
+.ds-field input[type="range"] {
+  width: 100%;
+}
+.ds-field select {
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+}
+.ds-field select:focus { border-color: var(--ds-accent2); }
+.ds-field input[type="range"] { accent-color: var(--ds-accent); }
+
+/* Диагностика */
+.ds-diag {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.ds-diag summary { cursor: pointer; color: var(--ds-muted); }
+.ds-diag__body {
+  margin: 8px 0;
+  color: var(--ds-text);
+  line-height: 1.6;
+}
+.ds-mini {
+  background: var(--ds-surface2);
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ds-mini:hover { background: #34343c; }
+
+.ds-footer { padding: 6px 16px 12px; min-height: 16px; }
+.ds-hint { font-size: 12px; color: var(--ds-accent); }

@@ -1,0 +1,282 @@
+/*
+ * Режим "DeepSeek Stream" — полноэкранный оверлей поверх сайта.
+ * Активируется при data-deepstreamer="ds-active" на <html>.
+ *
+ * Раскладка: слева большая сцена (аватар почти во весь экран),
+ * справа фиксированный чат в стиле Twitch (всегда виден, не сворачивается).
+ */
+
+#deepstreamer-root.ds-stream {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: 100vh;            /* фиксируем высоту строки, иначе чат «растёт» */
+  grid-template-areas: "stage chat";
+  pointer-events: auto;                 /* оверлей перехватывает события, не проваливая на сайт */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #f2f2f7;
+  background:
+    radial-gradient(1200px 700px at 35% 25%, rgba(77, 107, 254, 0.28), transparent 60%),
+    radial-gradient(900px 600px at 80% 85%, rgba(139, 92, 246, 0.24), transparent 60%),
+    linear-gradient(160deg, #0c0c11, #16161c 55%, #0e0e15);
+  overflow: hidden;
+}
+
+/* --- Сцена -------------------------------------------------------------- */
+.ds-stream .ds-stage {
+  grid-area: stage;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ds-stream .ds-statusline {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  z-index: 3;
+  background: linear-gradient(180deg, rgba(0,0,0,0.5), transparent);
+}
+.ds-stream .ds-live {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #7a7a85;
+}
+.ds-stream .ds-live.is-on {
+  color: #ff4d4d;
+  animation: ds-pulse 1.4s ease-in-out infinite;
+}
+.ds-stream .ds-title {
+  font-weight: 700;
+  font-size: 15px;
+  background: linear-gradient(90deg, #4d6bfe, #8b5cf6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ds-stream .ds-status-meta {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #cfcfd6;
+}
+.ds-stream .ds-status-meta b { color: #fff; }
+
+/* Аватар почти во весь экран */
+.ds-stream .ds-scene {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ds-stream .ds-avatar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center bottom;
+}
+
+/* Лицо занимает большую долю высоты вьюпорта */
+.ds-stream .ds-avatar__face {
+  font-size: clamp(180px, 42vh, 460px);
+  line-height: 1;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+  user-select: none;
+}
+
+.ds-stream .ds-avatar__shadow {
+  width: clamp(160px, 22vw, 340px);
+  height: clamp(20px, 3vh, 40px);
+  margin-top: 6px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.5), transparent 70%);
+  filter: blur(3px);
+}
+
+/* Реквизит активности — отдельный значок в углу сцены (НЕ лицо) */
+.ds-stream .ds-prop {
+  position: absolute;
+  top: 14%;
+  right: 12%;
+  font-size: clamp(48px, 8vh, 110px);
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
+  animation: ds-propfloat 3s ease-in-out infinite;
+  z-index: 2;
+  user-select: none;
+}
+
+.ds-stream .ds-emotionbadge {
+  position: absolute;
+  bottom: clamp(120px, 16vh, 200px);
+  font-size: 15px;
+  color: #cfcfd6;
+  letter-spacing: 0.3px;
+  min-height: 20px;
+}
+
+/* Индикатор "думает" */
+.ds-stream .ds-avatar.is-thinking .ds-avatar__face {
+  animation: ds-thinking 1s ease-in-out infinite;
+}
+
+/* --- Движения по активности -------------------------------------------- */
+.ds-stream .ds-avatar[data-motion="float"] .ds-avatar__face { animation: ds-float 3.6s ease-in-out infinite; }
+.ds-stream .ds-avatar[data-motion="bob"]   .ds-avatar__face { animation: ds-bob 1.7s ease-in-out infinite; }
+.ds-stream .ds-avatar[data-motion="shake"] .ds-avatar__face { animation: ds-shake 0.5s ease-in-out infinite; }
+.ds-stream .ds-avatar[data-motion="lean"]  .ds-avatar__face { animation: ds-lean 2.6s ease-in-out infinite; }
+.ds-stream .ds-avatar[data-motion="sleep"] .ds-avatar__face { animation: ds-sleep 4.2s ease-in-out infinite; }
+.ds-stream .ds-avatar[data-motion="sway"]  .ds-avatar__face { animation: ds-sway 2.2s ease-in-out infinite; }
+.ds-stream .ds-avatar[data-motion="jump"]  .ds-avatar__face { animation: ds-jump 0.95s ease-in-out infinite; }
+
+@keyframes ds-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-22px)} }
+@keyframes ds-bob { 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-12px) rotate(2deg)} }
+@keyframes ds-shake { 0%,100%{transform:translate(0,0) rotate(0)} 25%{transform:translate(-6px,3px) rotate(-3deg)} 75%{transform:translate(6px,-3px) rotate(3deg)} }
+@keyframes ds-lean { 0%,100%{transform:rotate(-6deg)} 50%{transform:rotate(6deg)} }
+@keyframes ds-sleep { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-10px) rotate(-8deg)} }
+@keyframes ds-sway { 0%,100%{transform:translateX(-16px) rotate(-3deg)} 50%{transform:translateX(16px) rotate(3deg)} }
+@keyframes ds-jump { 0%,100%{transform:translateY(0) scale(1)} 40%{transform:translateY(-44px) scale(1.04)} }
+@keyframes ds-thinking { 0%,100%{opacity:0.7} 50%{opacity:1} }
+@keyframes ds-propfloat { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-12px) rotate(4deg)} }
+@keyframes ds-pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+/* --- Субтитры ---------------------------------------------------------- */
+.ds-stream .ds-subtitles {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  max-width: min(82%, 820px);
+  padding: 14px 22px;
+  background: rgba(0, 0, 0, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  text-align: center;
+  font-size: clamp(18px, 2.4vh, 26px);
+  line-height: 1.35;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+.ds-stream .ds-subtitles.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.ds-stream.ds-no-subs .ds-subtitles { display: none; }
+
+/* --- Чат (Twitch-style, всегда виден, не сворачивается) ---------------- */
+.ds-stream .ds-chat {
+  grid-area: chat;
+  display: flex;
+  flex-direction: column;
+  min-width: 300px;              /* не даём чату уменьшаться */
+  min-height: 0;                 /* критично: разрешает вложенному списку скроллиться */
+  height: 100%;
+  overflow: hidden;              /* обрезаем внутри, скролл только у списка */
+  background: rgba(9, 9, 13, 0.72);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+.ds-stream .ds-chat__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e5e5ea;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.ds-stream .ds-chat__count {
+  font-weight: 500;
+  text-transform: none;
+  color: #9a9aa2;
+}
+.ds-stream .ds-chat__count b { color: #fff; }
+.ds-stream .ds-chat__list {
+  flex: 1 1 auto;
+  min-height: 0;                 /* критично для скролла во flex-контейнере */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+/* Голова и форма не сжимаются — скроллится только список */
+.ds-stream .ds-chat__head { flex: 0 0 auto; }
+.ds-stream .ds-chat__form { flex: 0 0 auto; }
+.ds-stream .ds-chat__msg {
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+  animation: ds-msgin 0.18s ease;
+}
+@keyframes ds-msgin { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
+.ds-stream .ds-chat__author { font-weight: 700; }
+.ds-stream .ds-chat__sep { color: #6c6c74; }
+.ds-stream .ds-chat__text { color: #e5e5ea; }
+.ds-stream .ds-chat__form {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ds-stream .ds-chat__input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  pointer-events: auto;          /* гарантируем интерактивность поверх сайта */
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+.ds-stream .ds-chat__input:focus { border-color: rgba(139, 92, 246, 0.6); }
+.ds-stream .ds-chat__send {
+  width: 40px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #4d6bfe, #8b5cf6);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.ds-stream .ds-chat__list::-webkit-scrollbar { width: 8px; }
+.ds-stream .ds-chat__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+}
+
+/* Узкие экраны: чат уходит вниз, но остаётся крупным и всегда видимым */
+@media (max-width: 860px) {
+  #deepstreamer-root.ds-stream {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 40vh;
+    grid-template-areas: "stage" "chat";
+  }
+  .ds-stream .ds-chat {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .ds-stream .ds-avatar__face { font-size: clamp(120px, 30vh, 260px); }
+}
