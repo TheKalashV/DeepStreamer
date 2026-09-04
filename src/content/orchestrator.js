@@ -76,6 +76,21 @@
       return entry;
     }
 
+    // Реакции зрителей появляются с небольшой задержкой друг за другом —
+    // как будто люди печатают после того, как услышали стримера.
+    async function postViewerReactions(messages) {
+      for (const m of messages) {
+        if (!running) return;
+        await delay(400 + Math.random() * 900);
+        if (!running) return;
+        addChatMessage(m.author, m.text);
+      }
+    }
+
+    function delay(ms) {
+      return new Promise((r) => setTimeout(r, ms));
+    }
+
     async function tick() {
       if (!running) return;
       state.stats.tick++;
@@ -105,16 +120,17 @@
         else driftActivity();
         setEmotion(result.emotion || "neutral");
 
-        // Реплики зрителей, придуманные моделью (live-режим, aiViewers).
-        if (Array.isArray(result.chat) && result.chat.length) {
-          for (const m of result.chat) addChatMessage(m.author, m.text);
-        }
-
         const entry = addTranscript(result.text, state.streamer.emotion, state.streamer.activity);
         emit("speak", entry);
 
-        // Озвучка; следующий тик планируем после конца речи (или сразу).
+        // Сначала стример ОЗВУЧИВАЕТ реплику...
         await speakEntry(entry);
+
+        // ...и только ПОТОМ зрители реагируют в чате (иначе ломается атмосфера:
+        // ответы появлялись бы раньше, чем ИИ это произнёс).
+        if (running && Array.isArray(result.chat) && result.chat.length) {
+          await postViewerReactions(result.chat);
+        }
       } else {
         driftActivity();
       }

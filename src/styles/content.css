@@ -12,7 +12,9 @@
   z-index: 2147483000;
   display: grid;
   grid-template-columns: 1fr 340px;
+  grid-template-rows: 100vh;            /* фиксируем высоту строки, иначе чат «растёт» */
   grid-template-areas: "stage chat";
+  pointer-events: auto;                 /* оверлей перехватывает события, не проваливая на сайт */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #f2f2f7;
   background:
@@ -180,6 +182,9 @@
   display: flex;
   flex-direction: column;
   min-width: 300px;              /* не даём чату уменьшаться */
+  min-height: 0;                 /* критично: разрешает вложенному списку скроллиться */
+  height: 100%;
+  overflow: hidden;              /* обрезаем внутри, скролл только у списка */
   background: rgba(9, 9, 13, 0.72);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(8px);
@@ -203,7 +208,8 @@
 }
 .ds-stream .ds-chat__count b { color: #fff; }
 .ds-stream .ds-chat__list {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;                 /* критично для скролла во flex-контейнере */
   overflow-y: auto;
   overflow-x: hidden;
   padding: 10px 12px;
@@ -211,6 +217,9 @@
   flex-direction: column;
   gap: 7px;
 }
+/* Голова и форма не сжимаются — скроллится только список */
+.ds-stream .ds-chat__head { flex: 0 0 auto; }
+.ds-stream .ds-chat__form { flex: 0 0 auto; }
 .ds-stream .ds-chat__msg {
   font-size: 14px;
   line-height: 1.45;
@@ -237,6 +246,10 @@
   color: #fff;
   font-size: 13px;
   outline: none;
+  pointer-events: auto;          /* гарантируем интерактивность поверх сайта */
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 .ds-stream .ds-chat__input:focus { border-color: rgba(139, 92, 246, 0.6); }
 .ds-stream .ds-chat__send {

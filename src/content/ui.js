@@ -105,6 +105,31 @@
         els.chatinput.value = "";
         onCommand?.("chat", text);
       });
+
+      // На сайте DeepSeek есть глобальные обработчики клавиш/фокуса, которые
+      // могут «перехватывать» ввод в наше поле. Останавливаем всплытие событий
+      // клавиатуры от поля чата, чтобы печатать можно было свободно.
+      const stop = (e) => e.stopPropagation();
+      ["keydown", "keyup", "keypress", "input", "paste"].forEach((evt) => {
+        els.chatinput.addEventListener(evt, stop);
+      });
+
+      // Enter отправляет (а не переносит строку), не давая сайту перехватить.
+      els.chatinput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          els.chatform.requestSubmit
+            ? els.chatform.requestSubmit()
+            : els.chatform.dispatchEvent(new Event("submit", { cancelable: true }));
+        }
+      });
+
+      // Клик по полю гарантированно ставит фокус (на случай фокус-ловушек сайта).
+      els.chatinput.addEventListener("mousedown", (e) => {
+        e.stopPropagation();
+        setTimeout(() => els.chatinput.focus(), 0);
+      });
     }
 
     // --- Реакции на события оркестратора -----------------------------------
