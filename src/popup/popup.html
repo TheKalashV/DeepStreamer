@@ -13,19 +13,70 @@
     </header>
 
     <main class="ds-main">
-      <label class="ds-row">
-        <span class="ds-row__label">Включить расширение</span>
-        <input type="checkbox" id="enabled" class="ds-switch" />
-      </label>
+      <!-- Основное управление -->
+      <button class="ds-primary" id="toggle" disabled>▶ Запустить стрим</button>
+      <div class="ds-statusrow">
+        <span class="ds-dot" id="statusDot"></span>
+        <span id="statusText">Откройте chat.deepseek.com</span>
+      </div>
 
-      <p class="ds-hint">
-        Реворк интерфейса DeepSeek. Функции добавляются постепенно —
-        переключатели появятся здесь.
-      </p>
+      <!-- Быстрые переключатели -->
+      <div class="ds-grid">
+        <label class="ds-toggle">
+          <input type="checkbox" id="enabled" />
+          <span>Режим стрима</span>
+        </label>
+        <label class="ds-toggle">
+          <input type="checkbox" id="ttsEnabled" />
+          <span>Озвучка (TTS)</span>
+        </label>
+        <label class="ds-toggle">
+          <input type="checkbox" id="subtitlesEnabled" />
+          <span>Субтитры</span>
+        </label>
+        <label class="ds-toggle">
+          <input type="checkbox" id="autoStart" />
+          <span>Автостарт</span>
+        </label>
+      </div>
+
+      <!-- Движок -->
+      <div class="ds-field">
+        <label for="engineMode">Источник реплик</label>
+        <select id="engineMode">
+          <option value="mock">Демо (локально)</option>
+          <option value="live">DeepSeek (через сайт)</option>
+        </select>
+      </div>
+
+      <!-- Активность -->
+      <div class="ds-field">
+        <label for="activity">Активность</label>
+        <select id="activity"></select>
+      </div>
+
+      <!-- Голос -->
+      <div class="ds-field">
+        <label for="ttsVoice">Голос</label>
+        <select id="ttsVoice"><option value="">По умолчанию</option></select>
+      </div>
+
+      <!-- Тайминг -->
+      <div class="ds-field">
+        <label for="loopIntervalMs">Пауза между репликами: <b id="loopVal">6.0</b> c</label>
+        <input type="range" id="loopIntervalMs" min="2000" max="15000" step="500" />
+      </div>
+
+      <!-- Диагностика live-подключения -->
+      <details class="ds-diag" id="diag">
+        <summary>Диагностика сайта</summary>
+        <div class="ds-diag__body" id="diagBody">—</div>
+        <button class="ds-mini" id="reprobe">Пересканировать</button>
+      </details>
     </main>
 
     <footer class="ds-footer">
-      <span id="status" class="ds-status"></span>
+      <span id="hint" class="ds-hint"></span>
     </footer>
 
     <script src="../lib/settings.js"></script>

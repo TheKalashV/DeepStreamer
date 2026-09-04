@@ -1,8 +1,7 @@
 // Точка входа content script. Связывает оркестратор, UI, TTS и DOM-драйвер.
 //
-// Порядок подключения модулей задан в manifest.json (settings → stream-state →
-// dom-driver → parser → prompt-builder → tts → engine → orchestrator → ui →
-// content). Здесь только "проводка" и реакция на настройки/команды.
+// Управление (старт/пауза, TTS, субтитры, смена активности) приходит из POPUP
+// расширения через chrome.runtime.sendMessage — на самом сайте кнопок нет.
 
 (function () {
   const ns = globalThis.DeepStreamer;
@@ -21,7 +20,7 @@
     else root.removeAttribute(ROOT_ATTR);
   }
 
-  // Реакция UI на события петли.
+  // Реакция UI на события петли оркестратора.
   function handleEvent(evt) {
     if (!ui) return;
     const { type, payload, state } = evt;
@@ -57,33 +56,68 @@
     }
   }
 
-  // Команды из UI (кнопки/чат).
-  function handleCommand(cmd, arg) {
-    switch (cmd) {
-      case "toggle":
-        if (orchestrator.isRunning()) orchestrator.stop();
-        else orchestrator.start();
-        break;
-      case "tts":
-        setSettings({ ttsEnabled: !settings.ttsEnabled });
-        break;
-      case "subs":
-        setSettings({ subtitlesEnabled: !settings.subtitlesEnabled });
-        break;
-      case "exit":
-        setSettings({ enabled: false });
-        break;
-      case "set-activity":
-        // Ручное задание активности зрителем/ведущим.
-        orchestrator.getState().streamer.activity = arg;
-        ui.updateAvatar(orchestrator.getState());
-        ui.updateHud(orchestrator.getState());
-        break;
-      case "chat":
-        // Сообщение от пользователя (владельца) в чат.
-        orchestrator.addChatMessage("вы", arg, "#4d6bfe");
-        break;
+  // Команды из UI сайта (только ввод в чат — единственный интерактив на сайте).
+  function handleUICommand(cmd, arg) {
+    if (cmd === "chat" && orchestrator) {
+      orchestrator.addChatMessage("вы", arg, "#4d6bfe");
     }
+  }
+
+  // Команды из POPUP расширения.
+  function handlePopupCommand(msg, sendResponse) {
+    switch (msg.command) {
+      case "get-status":
+        sendResponse({
+          ok: true,
+          running: orchestrator ? orchestrator.isRunning() : false,
+          probe: ns.DomDriver.probe(),
+          state: orchestrator ? summarizeState(orchestrator.getState()) : null,
+        });
+        return;
+      case "start":
+        orchestrator?.start();
+        sendResponse({ ok: true });
+        return;
+      case "stop":
+        orchestrator?.stop();
+        sendResponse({ ok: true });
+        return;
+      case "toggle":
+        if (orchestrator) {
+          if (orchestrator.isRunning()) orchestrator.stop();
+          else orchestrator.start();
+        }
+        sendResponse({ ok: true, running: orchestrator?.isRunning() });
+        return;
+      case "set-activity":
+        if (orchestrator) {
+          orchestrator.getState().streamer.activity = arg(msg);
+          ui?.updateAvatar(orchestrator.getState());
+          ui?.updateHud(orchestrator.getState());
+        }
+        sendResponse({ ok: true });
+        return;
+      case "probe":
+        ns.DomDriver.resetCache();
+        sendResponse({ ok: true, probe: ns.DomDriver.probe() });
+        return;
+      default:
+        sendResponse({ ok: false, error: "unknown-command" });
+    }
+  }
+
+  function arg(msg) {
+    return msg.value;
+  }
+
+  function summarizeState(state) {
+    return {
+      activity: state.streamer.activity,
+      emotion: state.streamer.emotion,
+      viewers: state.stats.viewers,
+      tick: state.stats.tick,
+      messagesSpoken: state.stats.messagesSpoken,
+    };
   }
 
   function mountStream() {
@@ -95,7 +129,7 @@
       onEvent: handleEvent,
     });
 
-    ui = ns.UI.createUI({ settings, onCommand: handleCommand });
+    ui = ns.UI.createUI({ settings, onCommand: handleUICommand });
     ui.mount();
     ui.updateAvatar(orchestrator.getState());
     ui.updateHud(orchestrator.getState());
@@ -127,6 +161,15 @@
       if (ui) ui.applySettings(settings);
       if (orchestrator) orchestrator.updateSettings(settings);
     });
+
+    // Приём команд из popup.
+    if (chrome.runtime?.onMessage) {
+      chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+        if (msg?.ns !== "deepstreamer") return false;
+        handlePopupCommand(msg, sendResponse);
+        return true; // асинхронный ответ
+      });
+    }
 
     console.log("[DeepStreamer] content script активен, режим стрима готов");
   }

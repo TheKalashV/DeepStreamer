@@ -1,6 +1,12 @@
-// UI стрима — рисует поверх сайта DeepSeek полноэкранный интерфейс
-// "DeepSeek Stream": сцена с эмодзи-аватаром, HUD, субтитры и ленту чата.
-// Реагирует на события оркестратора.
+// UI стрима "DeepSeek Stream" — полноэкранный оверлей поверх сайта.
+//
+// Принципы (по требованиям):
+//  - Аватар-ЛИЦО занимает почти весь экран (доминирует на сцене).
+//  - Реквизит активности (геймпад, наушники...) — ОТДЕЛЬНЫЙ значок, не лицо.
+//  - Чат зрителей — как на Twitch: всегда видим, НЕ сворачивается и не
+//    уменьшается пользователем.
+//  - Управление (старт/пауза, TTS, субтитры) вынесено в POPUP расширения,
+//    на самом сайте кнопок управления НЕТ.
 //
 // Экспортирует globalThis.DeepStreamer.UI.
 
@@ -24,7 +30,6 @@
       cacheEls(root);
       bindEvents();
       applySettings(settings);
-      renderActivities();
       return root;
     }
 
@@ -35,46 +40,39 @@
 
     function template() {
       return `
-        <div class="ds-topbar">
-          <div class="ds-brand">
-            <span class="ds-live" data-live>● LIVE</span>
+        <section class="ds-stage">
+          <div class="ds-statusline">
+            <span class="ds-live" data-live>● OFFLINE</span>
             <span class="ds-title">DeepSeek Stream</span>
+            <span class="ds-status-meta">
+              <span title="Зрители">👁 <b data-viewers>0</b></span>
+              <span title="Активность"><b data-activity>—</b></span>
+            </span>
           </div>
-          <div class="ds-hud">
-            <span class="ds-hud__item" title="Зрители">👁 <b data-viewers>0</b></span>
-            <span class="ds-hud__item" title="Активность">🎬 <b data-activity>—</b></span>
-            <span class="ds-hud__item" title="Тик">⏱ <b data-tick>0</b></span>
-          </div>
-          <div class="ds-controls">
-            <button class="ds-btn" data-cmd="toggle">▶ Старт</button>
-            <button class="ds-btn ds-btn--ghost" data-cmd="tts" title="Озвучка">🔊</button>
-            <button class="ds-btn ds-btn--ghost" data-cmd="subs" title="Субтитры">💬</button>
-            <button class="ds-btn ds-btn--ghost" data-cmd="exit" title="Выйти из режима стрима">✕</button>
-          </div>
-        </div>
 
-        <div class="ds-stage">
           <div class="ds-scene">
+            <div class="ds-prop" data-prop hidden></div>
             <div class="ds-avatar" data-avatar>
-              <div class="ds-avatar__emoji" data-emoji>🙂</div>
-              <div class="ds-avatar__shadow"></div>
+              <div class="ds-avatar__face" data-emoji>🙂</div>
             </div>
+            <div class="ds-avatar__shadow"></div>
             <div class="ds-emotionbadge" data-emotion></div>
           </div>
 
           <div class="ds-subtitles" data-subs>
             <span class="ds-subtitles__text" data-subtext></span>
           </div>
-
-          <div class="ds-activitybar" data-activities></div>
-        </div>
+        </section>
 
         <aside class="ds-chat">
-          <div class="ds-chat__head">Чат зрителей</div>
+          <div class="ds-chat__head">
+            <span>💬 Чат стрима</span>
+            <span class="ds-chat__count"><b data-viewers2>0</b> зрителей</span>
+          </div>
           <div class="ds-chat__list" data-chatlist></div>
           <form class="ds-chat__form" data-chatform>
-            <input class="ds-chat__input" data-chatinput placeholder="Написать в чат…" maxlength="200" />
-            <button class="ds-chat__send" type="submit">→</button>
+            <input class="ds-chat__input" data-chatinput placeholder="Сказать что-нибудь…" maxlength="200" />
+            <button class="ds-chat__send" type="submit" title="Отправить">→</button>
           </form>
         </aside>
       `;
@@ -85,25 +83,21 @@
         root,
         live: root.querySelector("[data-live]"),
         viewers: root.querySelector("[data-viewers]"),
+        viewers2: root.querySelector("[data-viewers2]"),
         activity: root.querySelector("[data-activity]"),
-        tick: root.querySelector("[data-tick]"),
         avatar: root.querySelector("[data-avatar]"),
         emoji: root.querySelector("[data-emoji]"),
+        prop: root.querySelector("[data-prop]"),
         emotion: root.querySelector("[data-emotion]"),
         subs: root.querySelector("[data-subs]"),
         subtext: root.querySelector("[data-subtext]"),
-        activities: root.querySelector("[data-activities]"),
         chatlist: root.querySelector("[data-chatlist]"),
         chatform: root.querySelector("[data-chatform]"),
         chatinput: root.querySelector("[data-chatinput]"),
-        toggleBtn: root.querySelector('[data-cmd="toggle"]'),
       };
     }
 
     function bindEvents() {
-      els.root.querySelectorAll("[data-cmd]").forEach((btn) => {
-        btn.addEventListener("click", () => onCommand?.(btn.dataset.cmd));
-      });
       els.chatform.addEventListener("submit", (e) => {
         e.preventDefault();
         const text = els.chatinput.value.trim();
@@ -113,29 +107,14 @@
       });
     }
 
-    function renderActivities() {
-      const items = Object.entries(State.ACTIVITIES)
-        .map(
-          ([key, a]) =>
-            `<button class="ds-actchip" data-act="${key}" title="${a.label}">${a.emoji}<span>${a.label}</span></button>`
-        )
-        .join("");
-      els.activities.innerHTML = items;
-      els.activities.querySelectorAll("[data-act]").forEach((chip) => {
-        chip.addEventListener("click", () => onCommand?.("set-activity", chip.dataset.act));
-      });
-    }
-
     // --- Реакции на события оркестратора -----------------------------------
     function onStart() {
-      els.toggleBtn.textContent = "⏸ Пауза";
-      els.toggleBtn.classList.add("is-live");
+      els.live.textContent = "● LIVE";
       els.live.classList.add("is-on");
     }
 
     function onStop() {
-      els.toggleBtn.textContent = "▶ Старт";
-      els.toggleBtn.classList.remove("is-live");
+      els.live.textContent = "● OFFLINE";
       els.live.classList.remove("is-on");
       setThinking(false);
     }
@@ -146,21 +125,27 @@
 
     function updateHud(state) {
       els.viewers.textContent = state.stats.viewers;
+      if (els.viewers2) els.viewers2.textContent = state.stats.viewers;
       const act = State.ACTIVITIES[state.streamer.activity];
       els.activity.textContent = act ? act.label : "—";
-      els.tick.textContent = state.stats.tick;
-      // Подсветить активную активность.
-      els.activities.querySelectorAll("[data-act]").forEach((chip) => {
-        chip.classList.toggle("is-active", chip.dataset.act === state.streamer.activity);
-      });
     }
 
     function updateAvatar(state) {
       const { activity, emotion } = state.streamer;
+      // Лицо — всегда лицо.
       els.emoji.textContent = State.emojiFor(activity, emotion);
-      // Класс движения по активности.
+      // Движение по активности.
       const motion = State.ACTIVITIES[activity]?.motion || "float";
       els.avatar.dataset.motion = motion;
+      // Реквизит — отдельным значком (или скрыт).
+      const prop = State.propFor(activity);
+      if (prop) {
+        els.prop.textContent = prop;
+        els.prop.hidden = false;
+      } else {
+        els.prop.hidden = true;
+      }
+      // Подпись эмоции.
       const em = State.EMOTIONS[emotion];
       els.emotion.textContent = em && emotion !== "neutral" ? em.label : "";
     }
@@ -177,13 +162,13 @@
     function addChat(entry) {
       const line = document.createElement("div");
       line.className = "ds-chat__msg";
-      line.innerHTML = `<span class="ds-chat__author" style="color:${entry.color}">${escapeHtml(
-        entry.author
-      )}</span> <span class="ds-chat__text">${escapeHtml(entry.text)}</span>`;
+      line.innerHTML =
+        `<span class="ds-chat__author" style="color:${entry.color}">${escapeHtml(entry.author)}</span>` +
+        `<span class="ds-chat__sep">:</span> ` +
+        `<span class="ds-chat__text">${escapeHtml(entry.text)}</span>`;
       els.chatlist.appendChild(line);
-      // Автоскролл вниз.
       els.chatlist.scrollTop = els.chatlist.scrollHeight;
-      while (els.chatlist.children.length > 120) {
+      while (els.chatlist.children.length > 200) {
         els.chatlist.removeChild(els.chatlist.firstChild);
       }
     }
@@ -191,8 +176,6 @@
     function applySettings(next) {
       settings = next;
       els.root.classList.toggle("ds-no-subs", !settings.subtitlesEnabled);
-      els.root.querySelector('[data-cmd="tts"]').classList.toggle("is-off", !settings.ttsEnabled);
-      els.root.querySelector('[data-cmd="subs"]').classList.toggle("is-off", !settings.subtitlesEnabled);
     }
 
     function escapeHtml(s) {
