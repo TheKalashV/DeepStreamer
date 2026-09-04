@@ -87,7 +87,8 @@
           if (orchestrator.isRunning()) orchestrator.stop();
           else orchestrator.start();
         }
-        sendResponse({ ok: true, running: orchestrator?.isRunning() });
+        // running обновляется синхронно в start()/stop().
+        sendResponse({ ok: true, running: !!orchestrator?.isRunning() });
         return;
       case "set-activity":
         if (orchestrator) {

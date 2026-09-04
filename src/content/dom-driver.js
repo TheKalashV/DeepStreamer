@@ -19,8 +19,17 @@
   // ---------------------------------------------------------------------------
   // Утилиты
   // ---------------------------------------------------------------------------
+  // ID нашего собственного оверлея — его нужно ПОЛНОСТЬЮ исключать из поиска,
+  // иначе драйвер найдёт наш чат-инпут / субтитры вместо элементов DeepSeek.
+  const OVERLAY_ID = "deepstreamer-root";
+
+  function insideOverlay(el) {
+    return !!(el && el.closest && el.closest("#" + OVERLAY_ID));
+  }
+
   function isVisible(el) {
     if (!el || !el.isConnected) return false;
+    if (insideOverlay(el)) return false; // никогда не трогаем свой UI
     const rect = el.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return false;
     const st = getComputedStyle(el);
@@ -189,8 +198,38 @@
 
   function setContentEditable(el, value) {
     el.focus();
-    el.textContent = value;
-    el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value }));
+    // Пытаемся вставить через beforeinput/execCommand — так рич-редакторы
+    // (ProseMirror/Lexical и т.п.) корректно принимают текст.
+    try {
+      el.dispatchEvent(
+        new InputEvent("beforeinput", {
+          bubbles: true,
+          cancelable: true,
+          inputType: "insertText",
+          data: value,
+        })
+      );
+    } catch {}
+    // Явно проставляем содержимое как фолбэк/подтверждение.
+    if (textOf(el) !== value) {
+      el.textContent = value;
+    }
+    el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: value }));
+  }
+
+  function currentInputValue(el) {
+    return el.isContentEditable ? textOf(el) : el.value || "";
+  }
+
+  function clearInput(el) {
+    if (!el) return;
+    if (el.isContentEditable) {
+      el.focus();
+      el.textContent = "";
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
+    } else {
+      setNativeValue(el, "");
+    }
   }
 
   function typeInto(el, text) {
@@ -220,6 +259,7 @@
     const set = new Set();
     KNOWN_MESSAGE_SELECTORS.forEach((sel) =>
       document.querySelectorAll(sel).forEach((n) => {
+        if (insideOverlay(n)) return; // не читать собственный UI
         if (textOf(n)) set.add(n);
       })
     );
@@ -227,6 +267,7 @@
     // верхней части экрана (там, где лента).
     if (!set.size) {
       document.querySelectorAll("div, article, section, p").forEach((n) => {
+        if (insideOverlay(n)) return;
         const t = textOf(n);
         if (t.length > 15 && n.children.length < 40) {
           const r = rectOf(n);
@@ -282,6 +323,54 @@
   // ---------------------------------------------------------------------------
   // Публичный API
   // ---------------------------------------------------------------------------
+  function isSendable(btn) {
+    if (!btn) return false;
+    if (btn.disabled) return false;
+    if (attr(btn, "aria-disabled") === "true") return false;
+    return true;
+  }
+
+  // Отправка с проверкой: считаем сообщение отправленным, если поле ввода
+  // очистилось. Пробуем кнопку → Enter, с ожиданием активации кнопки.
+  async function sendMessage(input, text) {
+    // Ждём, пока кнопка отправки станет активной (React обновляет её после ввода).
+    let btn = null;
+    for (let i = 0; i < 12; i++) {
+      btn = findSendButton(input);
+      if (isSendable(btn)) break;
+      await delay(120);
+    }
+
+    const attempts = [
+      () => {
+        if (isSendable(btn)) btn.click();
+        else throw new Error("btn-not-ready");
+      },
+      () => pressEnter(input),
+      () => {
+        // Повторно найти кнопку (могла перерисоваться) и кликнуть.
+        cache.sendBtn = null;
+        const b = findSendButton(input);
+        if (isSendable(b)) b.click();
+        else throw new Error("btn-not-ready-2");
+      },
+    ];
+
+    for (const tryOnce of attempts) {
+      try {
+        tryOnce();
+      } catch {
+        continue;
+      }
+      // Проверяем, что поле очистилось → значит отправилось.
+      for (let i = 0; i < 8; i++) {
+        await delay(100);
+        if (currentInputValue(input).trim() === "") return true;
+      }
+    }
+    return currentInputValue(input).trim() === "";
+  }
+
   async function ask(text, opts = {}) {
     let input = findInput();
     if (!input) {
@@ -292,13 +381,15 @@
     if (!input) return { ok: false, error: "input-not-found", text: "" };
 
     typeInto(input, text);
-    await delay(80);
+    await delay(120);
 
-    const btn = findSendButton(input);
-    if (btn && attr(btn, "aria-disabled") !== "true" && !btn.disabled) {
-      btn.click();
-    } else {
-      pressEnter(input);
+    const sent = await sendMessage(input, text);
+    if (!sent) {
+      // Не удалось отправить — не оставляем "висящий" текст в поле.
+      clearInput(input);
+      cache.input = null;
+      cache.sendBtn = null;
+      return { ok: false, error: "send-failed", text: "" };
     }
 
     const { text: answer, timedOut } = await waitForResponse(text, opts);
@@ -329,9 +420,24 @@
     cache.sendBtn = null;
   }
 
+  // Очистить поле ввода DeepSeek от нашего недоотправленного текста
+  // (вызывается при остановке стрима).
+  function cleanup() {
+    const input = findInput();
+    if (input && currentInputValue(input).trim() !== "") clearInput(input);
+  }
+
   function delay(ms) {
     return new Promise((r) => setTimeout(r, ms));
   }
 
-  ns.DomDriver = { ask, probe, resetCache, findInput, findSendButton, lastAssistantText };
+  ns.DomDriver = {
+    ask,
+    probe,
+    resetCache,
+    cleanup,
+    findInput,
+    findSendButton,
+    lastAssistantText,
+  };
 })();

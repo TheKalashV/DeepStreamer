@@ -166,10 +166,13 @@
 
     async function start() {
       if (running) return;
-      settings = await getSettings();
+      // Ставим флаг СРАЗУ (до await), чтобы isRunning() был корректен для
+      // ответа popup сразу после вызова.
       running = true;
       state.running = true;
       state.stats.startedAt = Date.now();
+      settings = await getSettings();
+      if (!running) return; // могли успеть остановить во время await
       emit("start", {});
       if (settings.engineMode === "mock") startMockViewers();
       tick();
@@ -182,6 +185,8 @@
       loopHandle = null;
       stopMockViewers();
       ns.Tts.stop();
+      // Убираем недоотправленный текст из поля ввода DeepSeek.
+      try { ns.DomDriver.cleanup?.(); } catch {}
       emit("stop", {});
     }
 
