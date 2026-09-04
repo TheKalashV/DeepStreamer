@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DeepStreamer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Расширение для сайта DeepSeek: улучшения интерфейса и новые возможности.",
   "icons": {
     "16": "assets/icons/icon16.png",
