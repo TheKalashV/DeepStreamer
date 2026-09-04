@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeepStreamer</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="ds-header">
+      <div class="ds-logo">DeepStreamer</div>
+      <div class="ds-version" id="version"></div>
+    </header>
+
+    <main class="ds-main">
+      <label class="ds-row">
+        <span class="ds-row__label">Включить расширение</span>
+        <input type="checkbox" id="enabled" class="ds-switch" />
+      </label>
+
+      <p class="ds-hint">
+        Реворк интерфейса DeepSeek. Функции добавляются постепенно —
+        переключатели появятся здесь.
+      </p>
+    </main>
+
+    <footer class="ds-footer">
+      <span id="status" class="ds-status"></span>
+    </footer>
+
+    <script src="../lib/settings.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

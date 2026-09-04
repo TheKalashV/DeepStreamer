@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "DeepStreamer",
+  "version": "0.1.0",
+  "description": "Расширение для сайта DeepSeek: улучшения интерфейса и новые возможности.",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "32": "assets/icons/icon32.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "action": {
+    "default_title": "DeepStreamer",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "32": "assets/icons/icon32.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.deepseek.com/*", "https://*.deepseek.com/*"],
+      "js": ["src/lib/settings.js", "src/content/content.js"],
+      "css": ["src/styles/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage"],
+  "host_permissions": ["https://*.deepseek.com/*"]
+}
