@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DeepStreamer — демо</title>
+    <link rel="stylesheet" href="../src/styles/content.css" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #0a0a0e; }
+      #demo-hint {
+        position: fixed; z-index: 2147483001; left: 50%; bottom: 8px;
+        transform: translateX(-50%);
+        font: 12px -apple-system, Segoe UI, Roboto, sans-serif;
+        color: #8a8a92; background: rgba(0,0,0,.5); padding: 4px 10px;
+        border-radius: 999px; pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="demo-hint">Демо-режим (mock) · нажмите ▶ Старт</div>
+
+    <!-- Стаб chrome.* API, чтобы модули расширения работали на обычной странице -->
+    <script src="chrome-stub.js"></script>
+
+    <!-- Те же модули, что и в расширении, в том же порядке -->
+    <script src="../src/lib/settings.js"></script>
+    <script src="../src/lib/stream-state.js"></script>
+    <script src="../src/content/dom-driver.js"></script>
+    <script src="../src/content/parser.js"></script>
+    <script src="../src/content/prompt-builder.js"></script>
+    <script src="../src/content/tts.js"></script>
+    <script src="../src/content/engine.js"></script>
+    <script src="../src/content/orchestrator.js"></script>
+    <script src="../src/content/ui.js"></script>
+    <script src="../src/content/content.js"></script>
+  </body>
+</html>
