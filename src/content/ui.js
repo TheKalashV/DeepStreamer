@@ -175,13 +175,20 @@
       els.emotion.textContent = em && emotion !== "neutral" ? em.label : "";
     }
 
-    function showSubtitle(text) {
+    // Показать субтитр и держать его, пока реплика не завершится (см. hideSubtitle).
+    // fallbackMs — страховочное авто-скрытие, если событие конца не придёт.
+    function showSubtitle(text, fallbackMs) {
       if (!settings.subtitlesEnabled) return;
       els.subtext.textContent = text;
       els.subs.classList.add("is-visible");
       clearTimeout(subtitleTimer);
-      const dur = Math.min(9000, 2500 + text.length * 60);
+      const dur = fallbackMs || Math.min(20000, 2500 + text.length * 70);
       subtitleTimer = setTimeout(() => els.subs.classList.remove("is-visible"), dur);
+    }
+
+    function hideSubtitle() {
+      clearTimeout(subtitleTimer);
+      els.subs.classList.remove("is-visible");
     }
 
     function addChat(entry) {
@@ -218,6 +225,7 @@
       updateHud,
       updateAvatar,
       showSubtitle,
+      hideSubtitle,
       addChat,
       applySettings,
     };

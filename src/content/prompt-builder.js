@@ -4,7 +4,9 @@
 // чат — и просим ответить в строгом формате, который потом разберёт Parser.
 //
 // Дополнительно: жёстко удерживаем РОЛЬ стримера (модель не должна «выпадать»
-// в обычного ИИ-ассистента) и просим сгенерировать реплики зрителей.
+// в обычного ИИ-ассистента), просим ВЕСТИ ЭФИР (рассказывать, комментировать,
+// а не только читать чат) и генерировать ЖИВЫЕ, неповторяющиеся реплики
+// зрителей, которые общаются между собой и со стримером.
 //
 // Экспортирует globalThis.DeepStreamer.PromptBuilder.
 
@@ -14,9 +16,20 @@
   const ACTIVITY_KEYS = () => Object.keys(ns.StreamState.ACTIVITIES).join(", ");
   const EMOTION_KEYS = () => Object.keys(ns.StreamState.EMOTIONS).join(", ");
 
-  // Жёсткий «якорь роли» — вставляется каждый тик, чтобы модель не срывалась
-  // в объяснения про то, что она ИИ-ассистент.
-  function roleAnchor(state, settings) {
+  // Что стример «делает» и о чём может говорить в этой активности.
+  const ACTIVITY_BRIEF = {
+    idle: "болтаешь с чатом на свободные темы, делишься мыслями, шутишь",
+    talking: "ведёшь живую беседу, рассказываешь историю или мнение",
+    gaming: "играешь и комментируешь геймплей: что происходит, твои ходы, эмоции от игры",
+    reviewing: "разбираешь что-то интересное вслух: плюсы, минусы, впечатления",
+    thinking: "рассуждаешь вслух над идеей или вопросом",
+    sleeping: "засыпаешь/дремлешь, говоришь сонно и коротко",
+    music: "слушаешь музыку и делишься впечатлениями, подпеваешь настроению",
+    reading: "читаешь чат и отвечаешь зрителям, но добавляешь и свои мысли",
+    celebrating: "радуешься моменту, благодаришь зрителей, эмоционально реагируешь",
+  };
+
+  function roleAnchor(state) {
     const s = state.streamer;
     return [
       `Ты играешь роль по имени «${s.name}» — харизматичный живой стример в прямом эфире на платформе DeepSeek Stream.`,
@@ -26,7 +39,17 @@
       `- Не извиняйся, не предлагай помощь, не давай инструкций «как ассистент».`,
       `- Не упоминай DeepSeek как нейросеть и не ломай «четвёртую стену».`,
       `- Говори живо, эмоционально, с юмором, разговорным языком от первого лица.`,
-      `- Реагируй на зрителей в чате, обращайся к ним по нику, шути, веди себя как настоящий стример на Twitch.`,
+    ].join("\n");
+  }
+
+  function hosting(state) {
+    const s = state.streamer;
+    const brief = ACTIVITY_BRIEF[s.activity] || "ведёшь эфир";
+    return [
+      `ВЕДИ ЭФИР АКТИВНО: настоящий стример почти не молчит. Сейчас ты ${brief}.`,
+      `Даже если в чате тихо — НЕ молчи и не отвечай пустотой: продолжай тему, рассказывай, комментируй то, чем занят, задавай вопрос зрителям.`,
+      `Если в чате есть новые сообщения — можешь отреагировать на 1-2 из них по нику, но не превращай эфир в один только «чтение чата».`,
+      `Каждая реплика — НОВАЯ мысль, не повторяй сказанное ранее.`,
     ].join("\n");
   }
 
@@ -34,22 +57,39 @@
     const s = state.streamer;
     const act = ns.StreamState.ACTIVITIES[s.activity];
     return [
-      `Сейчас ты занят: ${act ? act.label.toLowerCase() : s.activity}. Текущее настроение: ${s.emotion}.`,
-      `Зрителей в эфире: ${state.stats.viewers}.`,
-      `Отвечай ОДНОЙ короткой репликой (1–2 предложения) на языке: ${settings.language}. Без markdown, без кавычек вокруг всей реплики.`,
+      `Твоя активность: ${act ? act.label.toLowerCase() : s.activity}. Настроение: ${s.emotion}. Зрителей: ${state.stats.viewers}.`,
+      `Отвечай ОДНОЙ живой репликой (1–2 предложения) на языке: ${settings.language}. Без markdown и без кавычек вокруг всей реплики.`,
     ].join("\n");
   }
 
-  function recentChat(state, limit = 6) {
+  function lastOwnLine(state) {
+    const t = state.transcript;
+    if (!t.length) return "";
+    return t[t.length - 1].text;
+  }
+
+  function recentChat(state, limit = 8) {
     const items = state.chat.slice(-limit);
-    if (!items.length) return "(чат пока пустой — можешь сам оживить эфир)";
+    if (!items.length) return "(чат пока пустой)";
     return items.map((m) => `${m.author}: ${m.text}`).join("\n");
   }
 
+  function viewersInstruction(settings) {
+    if (!settings.aiViewers) return "";
+    return [
+      "",
+      "ЗРИТЕЛИ В ЧАТЕ (сгенерируй их реплики в поле chat):",
+      "- 1-3 коротких сообщения от РАЗНЫХ зрителей с разными никами.",
+      "- Реплики должны реагировать на то, что ты только что сказал, ИЛИ продолжать беседу.",
+      "- Зрители иногда общаются между собой (отвечают друг другу по нику), а не только тебе.",
+      "- НЕ повторяй уже написанные в чате сообщения и ники дословно. Каждая реплика уникальна и живая.",
+      "- Стиль чата: разговорный, эмодзи, сленг, короткие фразы — как в реальном Twitch-чате.",
+    ].join("\n");
+  }
+
   function formatInstructions(settings) {
-    const wantViewers = settings.aiViewers;
-    const chatField = wantViewers
-      ? `,\n  "chat": [ {"author": "ник_зрителя", "text": "реплика зрителя"}, ... 1-3 коротких реплик разных зрителей ]`
+    const chatField = settings.aiViewers
+      ? `,\n  "chat": [ {"author": "ник", "text": "реплика"} ]`
       : "";
     return [
       "Ответь СТРОГО одним объектом JSON и НИЧЕГО больше (без пояснений, без ```):",
@@ -62,16 +102,21 @@
   }
 
   function build(state, settings) {
-    return [
-      roleAnchor(state, settings),
+    const last = lastOwnLine(state);
+    const parts = [
+      roleAnchor(state),
+      "",
+      hosting(state),
       "",
       situation(state, settings),
-      "",
-      "Последние сообщения в чате зрителей:",
-      recentChat(state),
-      "",
-      formatInstructions(settings),
-    ].join("\n");
+    ];
+    if (last) {
+      parts.push("", `Твоя предыдущая реплика (не повторяй её): «${last}»`);
+    }
+    parts.push("", "Последние сообщения в чате зрителей:", recentChat(state));
+    parts.push(viewersInstruction(settings));
+    parts.push("", formatInstructions(settings));
+    return parts.join("\n");
   }
 
   ns.PromptBuilder = { build };

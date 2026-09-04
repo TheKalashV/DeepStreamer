@@ -81,6 +81,10 @@
     async function postViewerReactions(messages) {
       for (const m of messages) {
         if (!running) return;
+        // Пропускаем дубли: если такое сообщение уже недавно было в чате.
+        const norm = (m.text || "").trim().toLowerCase();
+        const dup = state.chat.slice(-15).some((c) => c.text.trim().toLowerCase() === norm);
+        if (!norm || dup) continue;
         await delay(400 + Math.random() * 900);
         if (!running) return;
         addChatMessage(m.author, m.text);
@@ -147,12 +151,26 @@
           emit("speak-end", entry);
           resolve();
         };
-        ns.Tts.speak(entry.text, settings, {
-          onStart: () => emit("speak-start", entry),
-          onEnd: done,
-        });
-        // Страховка: не ждать вечно, если TTS выключен/молчит.
-        setTimeout(done, 8000);
+
+        // Оценка длительности реплики — по ней держим субтитры и как страховку.
+        const estMs = ns.Tts.estimateDurationMs(entry.text, settings);
+
+        if (settings.ttsEnabled) {
+          let started = false;
+          ns.Tts.speak(entry.text, settings, {
+            onStart: () => { started = true; emit("speak-start", entry); },
+            onEnd: done,
+          });
+          // Страховка масштабируется под длину реплики (+ запас), а не фикс. 8с,
+          // чтобы длинные реплики не обрывались следующим тиком.
+          setTimeout(done, estMs + 6000);
+          // Если голос вообще не стартовал (нет голосов/заблокирован) — не висим.
+          setTimeout(() => { if (!started) done(); }, estMs + 1200);
+        } else {
+          // Без озвучки держим субтитры ровно на оценённую длительность чтения.
+          emit("speak-start", entry);
+          setTimeout(done, estMs);
+        }
       });
     }
 
@@ -171,9 +189,26 @@
     const MOCK_MSGS = [
       "привет стример!", "гоу в игру", "ахаха топ", "красавчик", "а что дальше?",
       "первый!", "поставь музыку", "как настроение?", "легенда", "жду обзор",
-      "сколько тебе лет?", "го общаться", "лол", "F", "красава", "+", "жиза",
-      "а ты реально ИИ?", "покажи скилл", "го марафон", "лайк поставил", "воу",
+      "сколько тебе лет?", "го общаться", "лол", "красава", "жиза", "воу",
+      "покажи скилл", "го марафон", "лайк поставил", "хаха ну ты даёшь",
+      "согласен полностью", "не, ну это топ", "кто ещё смотрит?", "привет из Питера",
+      "а мне зашло", "пиши ещё", "это база", "ору с чата", "хорош!", "вайб есть",
+      "давай про игры", "а стрим надолго?", "лучший стример", "поддержу лайком",
+      "хочу продолжение", "класс тема", "плюсую", "хех", "мощно", "красиво идёт",
     ];
+    // Недавно показанные сообщения — чтобы не повторяться подряд.
+    const recentMock = [];
+    function pickFreshMsg() {
+      for (let i = 0; i < 8; i++) {
+        const m = MOCK_MSGS[Math.floor(Math.random() * MOCK_MSGS.length)];
+        if (!recentMock.includes(m)) {
+          recentMock.push(m);
+          if (recentMock.length > 12) recentMock.shift();
+          return m;
+        }
+      }
+      return MOCK_MSGS[Math.floor(Math.random() * MOCK_MSGS.length)];
+    }
     function startMockViewers() {
       stopMockViewers();
       // Стартовое число зрителей, чтобы чат не был мёртвым.
@@ -183,12 +218,11 @@
         // Плавно колеблем число зрителей.
         const drift = Math.floor(Math.random() * 7) - 3;
         state.stats.viewers = Math.max(1, state.stats.viewers + drift);
-        if (Math.random() < 0.8) {
+        if (Math.random() < 0.7) {
           const author = MOCK_VIEWERS[Math.floor(Math.random() * MOCK_VIEWERS.length)];
-          const text = MOCK_MSGS[Math.floor(Math.random() * MOCK_MSGS.length)];
-          addChatMessage(author, text);
+          addChatMessage(author, pickFreshMsg());
         }
-      }, 2500);
+      }, 3000);
     }
     function stopMockViewers() {
       if (mockViewerHandle) clearInterval(mockViewerHandle);

@@ -40,9 +40,13 @@
         ui.setThinking(false);
         ui.updateAvatar(state);
         ui.updateHud(state);
+        break;
+      case "speak-start":
+        // Субтитр показываем с началом речи и держим до её конца.
         ui.showSubtitle(payload.text);
         break;
       case "speak-end":
+        ui.hideSubtitle();
         ui.updateAvatar(state);
         break;
       case "chat":

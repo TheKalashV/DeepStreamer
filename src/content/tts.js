@@ -58,6 +58,16 @@
     }
   }
 
+  // Оценка длительности речи (мс) — для случаев, когда TTS выключен, либо как
+  // страховочный таймаут. Учитываем скорость чтения и rate.
+  function estimateDurationMs(text, settings) {
+    const chars = (text || "").length;
+    const rate = clamp(settings?.ttsRate, 0.5, 2, 1);
+    // ~13 символов/сек при rate=1 (комфортная речь) + пауза.
+    const base = (chars / 13) * 1000;
+    return Math.max(1600, Math.round(base / rate) + 600);
+  }
+
   function stop() {
     try {
       synth?.cancel();
@@ -70,5 +80,5 @@
     return Math.min(max, Math.max(min, n));
   }
 
-  ns.Tts = { speak, stop, listVoices };
+  ns.Tts = { speak, stop, listVoices, estimateDurationMs };
 })();
